@@ -1,5 +1,5 @@
 ﻿// 
-//  Copyright 2009-2014  Deveel
+//  Copyright 2009-2017  Deveel
 // 
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -315,8 +315,8 @@ namespace Deveel.Math {
 				if (valSign < 0)
 					rem = -rem;
 				return new BigInteger[] {
-					BigInteger.ValueOf(quo),
-					BigInteger.ValueOf(rem)
+					BigInteger.FromInt64(quo),
+					BigInteger.FromInt64(rem)
 				};
 			}
 			int quotientLength = valLen;
@@ -409,7 +409,7 @@ namespace Deveel.Math {
 				// (op2.bitLength() < 64) implies by INV (op1.bitLength() < 64)
 				if ((op2.numberLength == 1)
 				    || ((op2.numberLength == 2) && (op2.Digits[1] > 0))) {
-					op2 = BigInteger.ValueOf(Division.GcdBinary(op1.ToInt64(),
+					op2 = BigInteger.FromInt64(Division.GcdBinary(op1.ToInt64(),
 						op2.ToInt64()));
 					break;
 				}
@@ -417,7 +417,7 @@ namespace Deveel.Math {
 				// Implements one step of the Euclidean algorithm
 				// To reduce one operand if it's much smaller than the other one
 				if (op2.numberLength > op1.numberLength*1.2) {
-					op2 = op2.Remainder(op1);
+					op2 = BigMath.Remainder(op2, op1);
 					if (op2.Sign != 0)
 						BitLevel.InplaceShiftRight(op2, op2.LowestSetBit);
 				} else {
@@ -432,7 +432,7 @@ namespace Deveel.Math {
 				op2 = op1;
 				op1 = swap;
 			} while (op1.Sign != 0);
-			return op2.ShiftLeft(pow2Count);
+			return op2 << pow2Count;
 		}
 
 		/**
@@ -482,7 +482,7 @@ namespace Deveel.Math {
 				throw new ArithmeticException(Messages.math19);
 			}
 
-			if (!p.TestBit(0)) {
+			if (!BigInteger.TestBit(p, 0)) {
 				// montgomery inverse require even modulo
 				return ModInverseLorencz(a, p);
 			}
@@ -548,7 +548,7 @@ namespace Deveel.Math {
 			if (r.CompareTo(p) >= BigInteger.EQUALS)
 				Elementary.inplaceSubtract(r, p);
 
-			r = p.Subtract(r);
+			r = p - r;
 
 			// Have pair: ((BigInteger)r, (Integer)k) where r == a^(-1) * 2^k mod (module)		
 			int n1 = CalcN(p);
@@ -605,11 +605,11 @@ namespace Deveel.Math {
 		private static int HowManyIterations(BigInteger bi, int n) {
 			int i = n - 1;
 			if (bi.Sign > 0) {
-				while (!bi.TestBit(i))
+				while (!BigInteger.TestBit(bi, i))
 					i--;
 				return n - 1 - i;
 			} else {
-				while (bi.TestBit(i))
+				while (BigInteger.TestBit(bi, i))
 					i--;
 				return n - 1 - System.Math.Max(i, bi.LowestSetBit);
 			}
@@ -699,16 +699,16 @@ namespace Deveel.Math {
 			if (IsPowerOfTwo(v, coefV)) {
 				r = s;
 				if (v.Sign != u.Sign)
-					u = u.Negate();
+					u = -u;
 			}
-			if (u.TestBit(n)) {
+			if (BigInteger.TestBit(u, n)) {
 				if (r.Sign < 0)
-					r = r.Negate();
+					r = -r;
 				else
-					r = modulo.Subtract(r);
+					r = modulo - r;
 			}
 			if (r.Sign < 0)
-				r = r.Add(modulo);
+				r += modulo;
 
 			return r;
 		}
@@ -786,9 +786,9 @@ namespace Deveel.Math {
 			// PRE: (base > 0), (exponent > 0), (modulus > 0) and (odd modulus)
 			int k = (modulus.numberLength << 5); // r = 2^k
 			// n-residue of base [base * r (mod modulus)]
-			BigInteger a2 = b.ShiftLeft(k).Mod(modulus);
+			BigInteger a2 = (b << k) % modulus;
 			// n-residue of base [1 * r (mod modulus)]
-			BigInteger x2 = BigInteger.GetPowerOfTwo(k).Mod(modulus);
+			BigInteger x2 = BigInteger.GetPowerOfTwo(k) % modulus;
 			BigInteger res;
 			// Compute (modulus[0]^(-1)) (mod 2^32) for odd modulus
 
@@ -818,7 +818,7 @@ namespace Deveel.Math {
 			// PRE: (base > 0), (exponent > 0), (modulus > 0) and (modulus even)
 			// STEP 1: Obtain the factorization 'modulus'= q * 2^j.
 			int j = modulus.LowestSetBit;
-			BigInteger q = modulus.ShiftRight(j);
+			BigInteger q = modulus >> j;
 
 			// STEP 2: Compute x1 := base^exponent (mod q).
 			BigInteger x1 = OddModPow(b, exponent, q);
@@ -828,12 +828,12 @@ namespace Deveel.Math {
 
 			// STEP 4: Compute q^(-1) (mod 2^j) and y := (x2-x1) * q^(-1) (mod 2^j)
 			BigInteger qInv = ModPow2Inverse(q, j);
-			BigInteger y = (x2.Subtract(x1)).Multiply(qInv);
+			BigInteger y = (x2 - x1) * qInv;
 			InplaceModPow2(y, j);
 			if (y.Sign < 0)
-				y = y.Add(BigInteger.GetPowerOfTwo(j));
+				y += BigInteger.GetPowerOfTwo(j);
 			// STEP 5: Compute and return: x1 + q * y
-			return x1.Add(q.Multiply(y));
+			return x1 + (q * y);
 		}
 
 		/**
@@ -853,16 +853,16 @@ namespace Deveel.Math {
 			 * If 'base' is odd then it's coprime with 2^j and phi(2^j) = 2^(j-1);
 			 * so we can reduce reduce the exponent (mod 2^(j-1)).
 			 */
-			if (b.TestBit(0))
+			if (BigInteger.TestBit(b, 0))
 				InplaceModPow2(e, j - 1);
 			InplaceModPow2(baseMod2toN, j);
 
 			for (int i = e.BitLength - 1; i >= 0; i--) {
 				res2 = res.Copy();
 				InplaceModPow2(res2, j);
-				res = res.Multiply(res2);
+				res = res * res2;
 				if (BitLevel.TestBit(e, i)) {
-					res = res.Multiply(baseMod2toN);
+					res = res * baseMod2toN;
 					InplaceModPow2(res, j);
 				}
 			}
@@ -968,7 +968,7 @@ namespace Deveel.Math {
 			y.Sign = 1;
 
 			for (int i = 1; i < n; i++) {
-				if (BitLevel.TestBit(x.Multiply(y), i)) {
+				if (BitLevel.TestBit(x * y, i)) {
 					// Adding 2^i to y (setting the i-th bit)
 					y.Digits[i >> 5] |= (1 << (i & 31));
 				}

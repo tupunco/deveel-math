@@ -1,5 +1,5 @@
 // 
-//  Copyright 2009-2014  Deveel
+//  Copyright 2009-2017  Deveel
 // 
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ namespace Deveel.Math {
 
 		static Primality() {// To initialize the dual table of BigInteger primes
 			for (int i = 0; i < primes.Length; i++) {
-				BIprimes[i] = BigInteger.ValueOf(primes[i]);
+				BIprimes[i] = BigInteger.FromInt64(primes[i]);
 			}
 
 			offsetPrimes = new int[11][];
@@ -117,7 +117,7 @@ namespace Deveel.Math {
 					new int[n.numberLength + 1]);
 			Array.Copy(n.Digits, 0, startPoint.Digits, 0, n.numberLength);
 			// To fix N to the "next odd number"
-			if (n.TestBit(0)) {
+			if (BigInteger.TestBit(n, 0)) {
 				Elementary.inplaceAdd(startPoint, 2);
 			} else {
 				startPoint.Digits[0] |= 1;
@@ -208,7 +208,7 @@ namespace Deveel.Math {
 				return true;
 			}
 			// To discard all even numbers
-			if (!n.TestBit(0)) {
+			if (!BigInteger.TestBit(n, 0)) {
 				return false;
 			}
 			// To check if 'n' exists in the table (it fit in 10 bits)
@@ -247,11 +247,11 @@ namespace Deveel.Math {
 			// PRE: n >= 0, t >= 0
 			BigInteger x; // x := UNIFORM{2...n-1}
 			BigInteger y; // y := x^(q * 2^j) mod n
-			BigInteger n_minus_1 = n.Subtract(BigInteger.One); // n-1
+			BigInteger n_minus_1 = n - BigInteger.One; // n-1
 			int bitLength = n_minus_1.BitLength; // ~ log2(n-1)
 			// (q,k) such that: n-1 = q * 2^k and q is odd
 			int k = n_minus_1.LowestSetBit;
-			BigInteger q = n_minus_1.ShiftRight(k);
+			BigInteger q = n_minus_1 >> k;
 			Random rnd = new Random();
 
 			for (int i = 0; i < t; i++) {
@@ -268,7 +268,7 @@ namespace Deveel.Math {
 					} while ((x.CompareTo(n) >= BigInteger.EQUALS) || (x.Sign == 0)
 							|| x.IsOne);
 				}
-				y = x.ModPow(q, n);
+				y = BigMath.ModPow(x, q, n);
 				if (y.IsOne || y.Equals(n_minus_1)) {
 					continue;
 				}
@@ -276,7 +276,7 @@ namespace Deveel.Math {
 					if (y.Equals(n_minus_1)) {
 						continue;
 					}
-					y = y.Multiply(y).Mod(n);
+					y = (y * y) % n;
 					if (y.IsOne) {
 						return false;
 					}

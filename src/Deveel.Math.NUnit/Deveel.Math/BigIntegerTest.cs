@@ -6,7 +6,7 @@ namespace Deveel.Math {
 	[TestFixture]
 	public class BigIntegerTest {
 		public BigIntegerTest() {
-			twoToTheSeventy = two.Pow(70);
+			twoToTheSeventy = BigMath.Pow(two, 70);
 		}
 
 		private BigInteger minusTwo = BigInteger.Parse("-2", 10);
@@ -244,6 +244,15 @@ namespace Deveel.Math {
 			Assert.IsTrue(one.CompareTo(one) == 0, "Equal numbers did not return 0");
 			Assert.IsTrue(two.Negate().CompareTo(one) < 0, "Neg number messed things up");
 		}
+
+		[Test]
+		public void CompareToBigInteger_Op() {
+			Assert.IsTrue(one < two, "Smaller number returned >= 0");
+			Assert.IsTrue(two > 0, "Larger number returned >= 0");
+			Assert.IsTrue(one == one, "Equal numbers did not return 0");
+			Assert.IsTrue(two.Negate() < 0, "Neg number messed things up");
+		}
+
 
 		[Test]
 		public void ToInt32() {
